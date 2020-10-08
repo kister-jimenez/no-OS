@@ -111,13 +111,6 @@ TINYIIOD_STD_TYPES = _USE_STD_INT_TYPES
 CFLAGS += -D $(TINYIIOD_STD_TYPES)
 endif
 
-ifeq (y,$(strip $(MBEDTLS)))
-#Specify configuration file to build mbedtls
-CFLAGS += -I $(NO-OS)/network/transport -D MBEDTLS_CONFIG_FILE='"noos_mbedtls_config.h"'
-#Add mbedtls include directory to inlcude path
-INCLUDE += $(NO-OS)/libraries/mbedtls/include
-endif
-
 #------------------------------------------------------------------------------
 #                            COMMON LINKER FLAGS                               
 #------------------------------------------------------------------------------
@@ -346,13 +339,6 @@ copy-srcs:
 clean:
 	$(call print,Cleaning build workspace \n)
 	rm -rf $(BUILD_DIR)
-	# Clean mbedtls only if submodule exists
-	( ! test -f $(LIBRARIES)/mbedtls/Makefile ) || \
-	$(MAKE) -C $(LIBRARIES)/mbedtls clean
-
-.SILENT:clean_libs
-clean_libs:
-	-$(CLEAN_IIO)
 
 # If the hardware file is not specified, start searching for one
 # Check for .hdf files inside the project directory
@@ -403,18 +389,10 @@ altera-elf:
 	nios2-elf-insert $(BUILD_DIR)/$(EXEC).elf $(STAMP)
 
 .SILENT:libs
-libs: $(LIB_TARGETS)
+libs:
 ifeq (y,$(strip $(TINYIIOD)))
 	@$(MAKE) -C $(LIBRARIES)/libtinyiiod re
-endif
-ifeq (y,$(strip $(MBEDTLS)))
-	@$(MAKE) -C $(LIBRARIES)/mbedtls lib
-endif
-ifeq (y,$(strip $(TINYIIOD)))
 LIBS += -L $(LIB_TINYIIOD_PATH) -l$(LIB_TINYIIOD)
-endif
-ifeq (y,$(strip $(MBEDTLS)))
-LIBS += -L $(LIBRARIES)/mbedtls/library -lmbedtls -lmbedx509 -lmbedcrypto
 endif
 
 .SILENT:pre-build
@@ -462,7 +440,7 @@ ADD_INCLUDE_PATHS=$(foreach dir, $(INC_PATHS_WITHOUT_I), $(call include_path_cmd
 FLAGS_WITHOUT_D = $(sort $(subst -D,,$(filter -D%, $(CFLAGS))))
 ADD_COMPILER_DEFINES = $(foreach flag, $(FLAGS_WITHOUT_D), $(call compiler_define_cmd,$(flag)))
 
-ADD_LIBRARIES = $(foreach lib, $(EXTRA_LIBS), $(call add_library_cmd,$(lib)))
+ADD_LIBRARIES = $(foreach lib, $(EXTRA_LIBS_NAMES), $(call add_library_cmd,$(lib)))
 
 ADD_LIBRARIES_PATH = $(foreach path, $(EXTRA_LIBS_PATHS), $(call lib_serach_path_cmd,$(path)))
 
@@ -498,6 +476,6 @@ xilinx-bsp:
 		sed -i "s/_HEAP_SIZE : 0x2000/_HEAP_SIZE : 0x100000/g"	\
 		$(BUILD_DIR)/app/src/lscript.ld;			\
 	fi;
-	$(MUTE)rm -rf $(BUILD_DIR)/SDK.log
+	-$(MUTE)rm -rf $(BUILD_DIR)/SDK.log
 
 re: clean all
